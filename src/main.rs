@@ -33,4 +33,7 @@ fn handle_connection(mut stream: TcpStream) {
 
   // 3.3 Print message sent from client side
   println!("Client message: {}", String::from_utf8_lossy(&buffer[..]));
+
+  // 3.4 Echo message to client
+  stream.write(b"Your message has been received!\r\n").unwrap();
 }
