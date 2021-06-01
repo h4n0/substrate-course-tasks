@@ -10,7 +10,11 @@ enum TrafficLight {
     Yellow,
 }
 
-impl TrafficLight {
+trait LightTime {
+    fn time(&self) -> u8;
+}
+
+impl LightTime for TrafficLight {
     // Match light colors with different durations
     // Red - 30s
     // Green - 20s
