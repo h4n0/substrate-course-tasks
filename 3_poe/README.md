@@ -14,6 +14,6 @@
 ![image](https://user-images.githubusercontent.com/4738254/121197670-c95b5e00-c871-11eb-8fe4-cc694993b6d5.png)
 
 
-5. verify transferred claim
+4. verify transferred claim
 
 ![image](https://user-images.githubusercontent.com/4738254/121197755-dbd59780-c871-11eb-84d6-fe34d13de0fa.png)
