@@ -1,5 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 /// This module is for proof of existence
 pub use pallet::*;
 
@@ -15,6 +20,10 @@ pub mod pallet {
   #[pallet::config]
   pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+	#[pallet::constant]
+	type ClaimLengthLimit: Get<u32>;
+
   }
 
   #[pallet::pallet]
@@ -43,7 +52,8 @@ pub mod pallet {
   pub enum Error<T> {
     ProofAlreadyExist,
     ClaimNotExist,
-    NotClaimOwner
+    NotClaimOwner,
+	ClaimLengthLimitExceed
   }
 
   #[pallet::hooks]
@@ -58,6 +68,8 @@ pub mod pallet {
     ) -> DispatchResultWithPostInfo {
 
       let sender = ensure_signed(origin)?;
+
+      ensure!(claim.len() <= T::ClaimLengthLimit::get() as usize, Error::<T>::ClaimLengthLimitExceed);
 
       ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExist);
 
