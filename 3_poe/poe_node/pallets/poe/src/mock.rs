@@ -24,7 +24,7 @@ frame_support::construct_runtime!(
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 42;
-	pub const ClaimLengthLimit: u32 = 2;
+	pub const ClaimLengthLimit: usize = 2;
 }
 
 impl system::Config for Test {

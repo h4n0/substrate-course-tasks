@@ -21,8 +21,7 @@ pub mod pallet {
   pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-	#[pallet::constant]
-	type ClaimLengthLimit: Get<u32>;
+	type ClaimLengthLimit: Get<usize>;
 
   }
 
@@ -69,7 +68,7 @@ pub mod pallet {
 
       let sender = ensure_signed(origin)?;
 
-      ensure!(claim.len() <= T::ClaimLengthLimit::get() as usize, Error::<T>::ClaimLengthLimitExceed);
+      ensure!(claim.len() <= T::ClaimLengthLimit::get(), Error::<T>::ClaimLengthLimitExceed);
 
       ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExist);
 
