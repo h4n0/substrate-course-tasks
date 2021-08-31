@@ -4,21 +4,41 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 
-use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Randomness};
+	use codec::{Codec, Decode, Encode};
+	use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::{Currency, ExistenceRequirement, Randomness, ReservableCurrency}};
 	use frame_system::pallet_prelude::*;
-	use codec::{Decode, Encode};
 	use sp_io::hashing::blake2_128;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, Saturating};
 
+	type BalanceOf<T> =
+	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
 	#[derive(Encode, Decode)]
-	pub struct Kitty(pub [u8; 16]);
+	pub struct Kitty<T: Config> {
+		pub dna: [u8; 16],
+		pub list_price: Option<BalanceOf<T>>,
+	}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
-		type KittyIndex: Parameter + MaybeSerializeDeserialize + Bounded + AtLeast32BitUnsigned + Copy + MaxEncodedLen;
+		type KittyIndex: Parameter
+			+ MaybeSerializeDeserialize
+			+ Bounded
+			+ AtLeast32BitUnsigned
+			+ Copy
+			+ MaxEncodedLen;
+		type Balance: Parameter
+			+ Member
+			+ AtLeast32BitUnsigned
+			+ Codec
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize;
+		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+		type ReserveAmount: Get<BalanceOf<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -31,11 +51,13 @@ use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Randomn
 
 	#[pallet::storage]
 	#[pallet::getter(fn kitties)]
-	pub type Kitties<T: Config> = StorageMap<_, Blake2_128Concat, T::KittyIndex, Option<Kitty>, ValueQuery>;
+	pub type Kitties<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::KittyIndex, Option<Kitty<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn owner)]
-	pub type Owner<T: Config> = StorageMap<_, Blake2_128Concat, T::KittyIndex, Option<T::AccountId>, ValueQuery>;
+	pub type Owner<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::KittyIndex, Option<T::AccountId>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::metadata(T::AccountId = "AccountId")]
@@ -51,6 +73,9 @@ use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Randomn
 		NotOwner,
 		SameParentIndex,
 		InvalidKittyIndex,
+		KittyAlreadyOwned,
+KittyWithoutOwner,
+KittyNotForSale,
 	}
 
 	#[pallet::call]
@@ -63,9 +88,12 @@ use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Randomn
 
 			let dna = Self::random_value(&who);
 
-			Kitties::<T>::insert(kitty_id, Some(Kitty(dna)));
+			Kitties::<T>::insert(kitty_id, Some(Kitty{dna: dna, list_price: None}));
 			Owner::<T>::insert(kitty_id, Some(who.clone()));
 			KittiesCount::<T>::put(kitty_id.saturating_add(T::KittyIndex::from(1u8)));
+
+			// Reserve amount of token
+			let _ = T::Currency::reserve(&who, T::ReserveAmount::get());
 
 			Self::deposit_event(Event::KittyCreated(who, kitty_id));
 
@@ -73,7 +101,11 @@ use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Randomn
 		}
 
 		#[pallet::weight(0)]
-		pub fn transfer(origin: OriginFor<T>, recipient: T::AccountId, kitty_id: T::KittyIndex) -> DispatchResult {
+		pub fn transfer(
+			origin: OriginFor<T>,
+			recipient: T::AccountId,
+			kitty_id: T::KittyIndex,
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure!(Some(who.clone()) == Owner::<T>::get(kitty_id), Error::<T>::NotOwner);
@@ -86,7 +118,11 @@ use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Randomn
 		}
 
 		#[pallet::weight(0)]
-		pub fn breed(origin: OriginFor<T>, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex) -> DispatchResult {
+		pub fn breed(
+			origin: OriginFor<T>,
+			kitty_id_1: T::KittyIndex,
+			kitty_id_2: T::KittyIndex,
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure!(kitty_id_1 != kitty_id_2, Error::<T>::SameParentIndex);
@@ -96,22 +132,68 @@ use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Randomn
 
 			let kitty_id = Self::next_kitty_id()?;
 
-			let dna_1 = kitty_1.0;
-			let dna_2 = kitty_2.0;
-
 			let selector = Self::random_value(&who);
 			let mut new_dna = [0u8; 16];
 
 			for i in 0..new_dna.len() {
-				new_dna[i] = (selector[i] & dna_1[i]) | (!selector[i] & dna_2[i]);
+				new_dna[i] = (selector[i] & kitty_1.dna[i]) | (!selector[i] & kitty_2.dna[i]);
 			}
 
-			Kitties::<T>::insert(kitty_id, Some(Kitty(new_dna)));
+			Kitties::<T>::insert(kitty_id, Some(Kitty{dna: new_dna, list_price: None}));
 			Owner::<T>::insert(kitty_id, Some(who.clone()));
 			KittiesCount::<T>::put(kitty_id.saturating_add(T::KittyIndex::from(1u8)));
 
 			Self::deposit_event(Event::KittyCreated(who, kitty_id));
 
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn sell(
+			origin: OriginFor<T>,
+			kitty_id: T::KittyIndex,
+			list_price: BalanceOf<T>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(Some(who.clone()) == Owner::<T>::get(kitty_id), Error::<T>::NotOwner);
+
+			// Ensure kitty_id is valid
+			let _ = Self::kitties(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
+
+			// Update the list price
+			Kitties::<T>::mutate(kitty_id, |kitty|{
+				match kitty {
+					Some(k) => {
+						k.list_price = Some(list_price);
+					},
+					None => {
+					}
+				}
+			});
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn buy(
+			origin: OriginFor<T>,
+			kitty_id: T::KittyIndex,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let original_owner = Owner::<T>::get(kitty_id).ok_or(Error::<T>::KittyWithoutOwner)?;
+
+			ensure!(who != original_owner, Error::<T>::KittyAlreadyOwned);
+
+			// Ensure kitty_id is valid
+			let kitty = Self::kitties(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
+
+			let kitty_price = kitty.list_price.ok_or(Error::<T>::KittyNotForSale)?;
+
+			let _ = T::Currency::transfer(&who, &original_owner, kitty_price, ExistenceRequirement::AllowDeath);
+
+			//TODO transfer kitty with a common method
 
 			Ok(())
 		}
@@ -132,10 +214,8 @@ use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::Randomn
 				Some(id) => {
 					ensure!(id <= T::KittyIndex::max_value(), Error::<T>::KittiesCountOverflow);
 					Ok(id)
-				},
-				None => {
-					Ok(T::KittyIndex::min_value())
 				}
+				None => Ok(T::KittyIndex::min_value()),
 			}
 		}
 	}
