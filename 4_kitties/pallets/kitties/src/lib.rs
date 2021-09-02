@@ -150,12 +150,8 @@ InsufficientReserveBalance,
 
 			// Update the list price
 			Kitties::<T>::mutate(kitty_id, |kitty|{
-				match kitty {
-					Some(k) => {
-						k.list_price = Some(list_price);
-					},
-					None => {
-					}
+				if let Some(k) =  kitty {
+					k.list_price = Some(list_price);
 				}
 			});
 
@@ -169,16 +165,19 @@ InsufficientReserveBalance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			// Get the original kitty owner
 			let original_owner = Owner::<T>::get(kitty_id).ok_or(Error::<T>::KittyWithoutOwner)?;
 
+			// Make sure the original owner is not the buyer
 			ensure!(who != original_owner, Error::<T>::KittyAlreadyOwned);
 
 			// Ensure kitty_id is valid
 			let kitty = Self::kitties(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
 
+			// Get the kitty list price only if it's for sale
 			let kitty_price = kitty.list_price.ok_or(Error::<T>::KittyNotForSale)?;
 
-			let _ = T::Currency::transfer(&who, &original_owner, kitty_price, ExistenceRequirement::AllowDeath);
+			T::Currency::transfer(&who, &original_owner, kitty_price, ExistenceRequirement::AllowDeath)?;
 
 			Self::kitty_transfer(original_owner, who, kitty_id)?;
 
