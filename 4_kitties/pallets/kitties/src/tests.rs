@@ -1,4 +1,4 @@
-use crate::{Error, mock::*};
+use crate::{mock::*, Error};
 use frame_support::{assert_noop, assert_ok};
 
 #[test]
@@ -13,9 +13,7 @@ fn create_kitty_succeeds() {
 		assert_eq!(Kitties::owner(1), Some(1));
 		assert_eq!(Kitties::kitties_count(), Some(1));
 
-		System::assert_last_event(Event::Kitties(crate::Event::KittyCreated(
-			1, 1
-		)));
+		System::assert_last_event(Event::Kitties(crate::Event::KittyCreated(1, 1)));
 	});
 }
 
@@ -69,7 +67,6 @@ fn transfer_kitty_fails_with_not_owner() {
 		assert_eq!(Kitties::owner(1), Some(1));
 
 		assert_noop!(Kitties::transfer(Origin::signed(5), 8, 1), Error::<Test>::NotOwner);
-
 	});
 }
 
@@ -84,9 +81,11 @@ fn transfer_kitty_fails_with_insufficient_balance() {
 		assert_eq!(Kitties::kitties(1).is_some(), true);
 		assert_eq!(Kitties::owner(1), Some(1));
 
-		assert_noop!(Kitties::transfer(Origin::signed(1), 8, 1), Error::<Test>::InsufficientReserveBalance);
+		assert_noop!(
+			Kitties::transfer(Origin::signed(1), 8, 1),
+			Error::<Test>::InsufficientReserveBalance
+		);
 		assert_eq!(Kitties::owner(1), Some(1));
-
 	});
 }
 
@@ -109,7 +108,6 @@ fn breed_kitty_succeeds() {
 		assert_eq!(Balances::reserved_balance(1), 3 * ReserveAmount::get());
 
 		System::assert_last_event(Event::Kitties(crate::Event::KittyCreated(1, 3)));
-
 	});
 }
 
@@ -163,7 +161,6 @@ fn sell_kitty_succeeds() {
 		assert_eq!(Kitties::kitties(1).unwrap().list_price, Some(50));
 
 		System::assert_last_event(Event::Kitties(crate::Event::KittyOnSale(1, 1, 50)));
-
 	});
 }
 

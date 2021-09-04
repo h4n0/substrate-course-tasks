@@ -1,6 +1,6 @@
 use crate as pallet_kitties;
-use frame_support_test::TestRandomness;
 use frame_support::parameter_types;
+use frame_support_test::TestRandomness;
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{

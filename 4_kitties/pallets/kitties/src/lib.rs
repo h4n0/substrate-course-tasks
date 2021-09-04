@@ -10,14 +10,18 @@ mod tests;
 #[frame_support::pallet]
 pub mod pallet {
 
-use codec::{Codec, Decode, Encode};
-	use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::{Currency, ExistenceRequirement, Randomness, ReservableCurrency}};
+	use codec::{Codec, Decode, Encode};
+	use frame_support::{
+		dispatch::DispatchResult,
+		pallet_prelude::*,
+		traits::{Currency, ExistenceRequirement, Randomness, ReservableCurrency},
+	};
 	use frame_system::pallet_prelude::*;
 	use sp_io::hashing::blake2_128;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, Saturating, StaticLookup};
 
 	type BalanceOf<T> =
-	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	#[derive(Encode, Decode)]
 	pub struct Kitty<T: Config> {
@@ -71,7 +75,7 @@ use codec::{Codec, Decode, Encode};
 	pub enum Event<T: Config> {
 		KittyCreated(T::AccountId, T::KittyIndex),
 		KittyTransferred(T::AccountId, T::AccountId, T::KittyIndex),
-KittyOnSale(T::AccountId, T::KittyIndex, BalanceOf<T>),
+		KittyOnSale(T::AccountId, T::KittyIndex, BalanceOf<T>),
 	}
 
 	#[pallet::error]
@@ -81,10 +85,10 @@ KittyOnSale(T::AccountId, T::KittyIndex, BalanceOf<T>),
 		SameParentIndex,
 		InvalidKittyIndex,
 		KittyAlreadyOwned,
-KittyWithoutOwner,
-KittyNotForSale,
-InsufficientReserveBalance,
-InsufficientPaymentBalance,
+		KittyWithoutOwner,
+		KittyNotForSale,
+		InsufficientReserveBalance,
+		InsufficientPaymentBalance,
 	}
 
 	#[pallet::call]
@@ -157,8 +161,8 @@ InsufficientPaymentBalance,
 			ensure!(Some(who.clone()) == Owner::<T>::get(kitty_id), Error::<T>::NotOwner);
 
 			// Update the list price
-			Kitties::<T>::mutate(kitty_id, |kitty|{
-				if let Some(k) =  kitty {
+			Kitties::<T>::mutate(kitty_id, |kitty| {
+				if let Some(k) = kitty {
 					k.list_price = Some(list_price);
 				}
 			});
@@ -169,10 +173,7 @@ InsufficientPaymentBalance,
 		}
 
 		#[pallet::weight(0)]
-		pub fn buy(
-			origin: OriginFor<T>,
-			kitty_id: T::KittyIndex,
-		) -> DispatchResult {
+		pub fn buy(origin: OriginFor<T>, kitty_id: T::KittyIndex) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			// Ensure kitty_id is valid
@@ -188,10 +189,18 @@ InsufficientPaymentBalance,
 			let kitty_price = kitty.list_price.ok_or(Error::<T>::KittyNotForSale)?;
 
 			// Ensure there is sufficient balance of buyer to pay the price and reserve the amount of money for kitty
-			ensure!(T::Currency::free_balance(&who) >= kitty_price + T::ReserveAmount::get(), Error::<T>::InsufficientPaymentBalance);
+			ensure!(
+				T::Currency::free_balance(&who) >= kitty_price + T::ReserveAmount::get(),
+				Error::<T>::InsufficientPaymentBalance
+			);
 
 			// This should succeed
-			T::Currency::transfer(&who, &original_owner, kitty_price, ExistenceRequirement::AllowDeath)?;
+			T::Currency::transfer(
+				&who,
+				&original_owner,
+				kitty_price,
+				ExistenceRequirement::AllowDeath,
+			)?;
 
 			// This should succeed
 			Self::kitty_transfer(original_owner, who, kitty_id)?;
@@ -219,7 +228,7 @@ InsufficientPaymentBalance,
 					Ok(id.saturating_add(T::KittyIndex::from(1u8)))
 				}
 				// Start count from 1
-				None => Ok(T::KittyIndex::min_value().saturating_add(T::KittyIndex::from(1u8)))
+				None => Ok(T::KittyIndex::min_value().saturating_add(T::KittyIndex::from(1u8))),
 			}
 		}
 
@@ -232,18 +241,22 @@ InsufficientPaymentBalance,
 		// Setter of kitty owner for testing
 		#[cfg(test)]
 		pub fn set_kitty_owner(kitty_index: T::KittyIndex, owner: Option<T::AccountId>) {
-			Owner::<T>::mutate(kitty_index, |v|{
+			Owner::<T>::mutate(kitty_index, |v| {
 				*v = owner;
 			});
 		}
 
 		// Create kitty
-		fn kitty_create(who: T::AccountId, kitty_id: T::KittyIndex, dna:[u8; 16]) -> Result<(), Error<T>> {
-
+		fn kitty_create(
+			who: T::AccountId,
+			kitty_id: T::KittyIndex,
+			dna: [u8; 16],
+		) -> Result<(), Error<T>> {
 			// Reserve amount of token
-			T::Currency::reserve(&who, T::ReserveAmount::get()).map_err(|_| Error::<T>::InsufficientReserveBalance)?;
+			T::Currency::reserve(&who, T::ReserveAmount::get())
+				.map_err(|_| Error::<T>::InsufficientReserveBalance)?;
 
-			Kitties::<T>::insert(kitty_id, Some(Kitty{dna: dna, list_price: None}));
+			Kitties::<T>::insert(kitty_id, Some(Kitty { dna, list_price: None }));
 			Owner::<T>::insert(kitty_id, Some(who.clone()));
 			KittiesCount::<T>::put(kitty_id);
 
@@ -256,14 +269,14 @@ InsufficientPaymentBalance,
 		fn kitty_transfer(
 			sender: T::AccountId,
 			recipient: T::AccountId,
-			kitty_id: T::KittyIndex
+			kitty_id: T::KittyIndex,
 		) -> Result<(), Error<T>> {
-
 			// Ensure the given kitty belongs to the sender
 			ensure!(Some(sender.clone()) == Owner::<T>::get(kitty_id), Error::<T>::NotOwner);
 
 			// Reserve amount of token on recipient
-			T::Currency::reserve(&recipient, T::ReserveAmount::get()).map_err(|_| Error::<T>::InsufficientReserveBalance)?;
+			T::Currency::reserve(&recipient, T::ReserveAmount::get())
+				.map_err(|_| Error::<T>::InsufficientReserveBalance)?;
 
 			Owner::<T>::insert(kitty_id, Some(recipient.clone()));
 
@@ -274,6 +287,5 @@ InsufficientPaymentBalance,
 
 			Ok(())
 		}
-
 	}
 }
