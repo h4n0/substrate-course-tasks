@@ -24,9 +24,9 @@ jobs:
         override: true
     - name: Build Kitties
       run: |
-        cd 4_kitties
+        cd 4_kitties/substrate
         cargo build --release
     - name: Run tests
       run: |
-        cd 4_kitties 
+        cd 4_kitties/substrate 
         cargo test
