@@ -1,4 +1,8 @@
 {
-  "Kitty": "([u8; 16])",
+  "dna": "([u8; 16])",
+  "Kitty": {
+	  "dna": "dna",
+	  "list_price": "Option<Balance>"
+  },
   "KittyIndex": "u32"
 }
