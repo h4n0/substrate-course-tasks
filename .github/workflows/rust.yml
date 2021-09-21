@@ -24,9 +24,9 @@ jobs:
         override: true
     - name: Build Kitties
       run: |
-        cd 4_kitties
-        cargo build --release
+        cd 7_ink_contract/erc20
+        cargo contract build --release
     - name: Run tests
       run: |
-        cd 4_kitties
-        cargo test
+        cd 7_ink_contract/erc20
+        cargo contract test
