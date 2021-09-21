@@ -22,12 +22,11 @@ jobs:
         toolchain: nightly-2021-08-01
         target: wasm32-unknown-unknown
         override: true
-    - name: Build contracts
+    - name: Build Kitties
       run: |
-        cd 7_ink_contract/erc20
-        cargo install cargo-contract --vers ^0.14 --force --locked
-        cargo contract build --release
+        cd 4_kitties
+        cargo build --release
     - name: Run tests
       run: |
-        cd 7_ink_contract/erc20
-        cargo contract test
+        cd 4_kitties
+        cargo test
