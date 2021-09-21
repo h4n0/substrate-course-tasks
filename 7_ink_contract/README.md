@@ -1,6 +1,6 @@
 1. Instantiate a new ERC20
 
-![image](https://user-images.githubusercontent.com/4738254/134150752-90848bde-be97-4d64-bfc0-c31608e799f4.png)
+![image](https://user-images.githubusercontent.com/4738254/134152105-93c67440-3ad9-4155-a856-c211aa08e4f2.png)
 
 
 2. Transfer balance from Dave to Bob
